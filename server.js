@@ -8,6 +8,7 @@ var express    = require('express');
 var bodyParser = require('body-parser');
 var app        = express();
 var port    = 	parseInt(process.env.OPENSHIFT_NODEJS_PORT) || 3000;
+var domain      = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
 
 
 // configure app
@@ -111,5 +112,6 @@ app.use('/app', router);
 
 // START THE SERVER
 // ==============================================
-app.listen(port);
+app.listen(port,domain);
 console.log('Magic happens on port ' + port);
+console.log('Domain ' + domain);
