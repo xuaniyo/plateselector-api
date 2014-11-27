@@ -1,60 +1,95 @@
+// server.js
+
 // BASE SETUP
-// =============================================================================
+// ==============================================
 
 // call the packages we need
 var express    = require('express');
 var bodyParser = require('body-parser');
 var app        = express();
+var port    = 	parseInt(process.env.OPENSHIFT_NODEJS_PORT) || 3000;
+
 
 // configure app
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-var port     = process.env.PORT || 8080; // set our port
-
 var mongoose   = require('mongoose');
 mongoose.connect('mongodb://user:Temporal1@ds051720.mongolab.com:51720/restaurantsdb'); // connect to our database
 var Restaurant     = require('./app/models/restaurant');
 
-// ROUTES FOR OUR API
-// =============================================================================
+// we'll create our routes here
 
-// create our router
+// get an instance of router
 var router = express.Router();
 
-// middleware to use for all requests
+
+
+// route middleware that will happen on every request
 router.use(function(req, res, next) {
-	// do logging
-	console.log('Something is happening.');
-	next();
+
+	// log each request to the console
+	console.log(req.method, req.url);
+
+	// continue doing what we were doing and go to the route
+	next();	
 });
 
-// test route to make sure everything is working (accessed at GET http://localhost:8080/api)
+// ROUTES
+// ==============================================
+
+
+
+
+// home page route (http://localhost:8080)
 router.get('/', function(req, res) {
-	res.json({ message: 'hooray! welcome to our api!' });	
+	res.send('im the home page!');	
 });
 
-// on routes that end in /restaurants
-// ----------------------------------------------------
-router.route('/restaurants')
+// about page route (http://localhost:8080/about)
+router.get('/about', function(req, res) {
+	res.send('im the about page!');	
+});
 
-	// create a restaurant (accessed at POST http://localhost:8080/api/restaurants)
-	.post(function(req, res) {
-		
-		var restaurant = new Restaurant();		// create a new instance of the Restaurant model
-		restaurant.name = req.body.name;  // set the Restaurant name (comes from the request)
 
-		restaurant.save(function(err) {
+
+//find restaurants by a keyword (http://localhost:3000/app/restaurants/find?keyword=morro)
+router.route('/restaurants/find')
+	.get(function(req, res) {
+		 
+		//in production you would do some sanity checks on these values 
+    var keyWord = req.query.keyword;
+		 
+		 Restaurant.find({'keywords': new RegExp(keyWord, "i")}).exec(function(err, restaurants) {
 			if (err)
 				res.send(err);
 
-			res.json({ message: 'Restaurant created!' });
+			res.json(restaurants);
 		});
+		 
+	});
 
-		
-	})
+//find restaurants near a certain user with lat and lon (/restaurants/near?lon=41.988843&lat=3.014846)
+router.route('/restaurants/near')
+	.get(function(req, res) {
+		 
+		//in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
+    var lat = parseFloat(req.query.lat);
+    var lon = parseFloat(req.query.lon);
+		 
+		 Restaurant.where('pos').near({ center: [lon , lat], maxDistance: 2 }).exec(function(err, restaurants) {
+			if (err)
+				res.send(err);
 
-	// get all the restaurants (accessed at GET http://localhost:8080/api/restaurants)
+			res.json(restaurants);
+		});
+		 
+	});
+
+
+
+
+router.route('/restaurants')
 	.get(function(req, res) {
 		Restaurant.find(function(err, restaurants) {
 			if (err)
@@ -63,85 +98,18 @@ router.route('/restaurants')
 			res.json(restaurants);
 		});
 	});
-
-// on routes that end in /restaurants/:restaurant_id
-// ----------------------------------------------------
-router.route('/restaurants/:restaurant_id')
-
-	// get the restaurant with that id
-	.get(function(req, res) {
-		Restaurant.findById(req.params.restaurant_id, function(err, restaurant) {
-			if (err)
-				res.send(err);
-			res.json(restaurant);
-		});
-	})
-
-	// update the restaurant with this id
-	.put(function(req, res) {
-		Restaurant.findById(req.params.restaurant_id, function(err, restaurant) {
-
-			if (err)
-				res.send(err);
-
-			restaurant.name = req.body.name;
-			restaurant.save(function(err) {
-				if (err)
-					res.send(err);
-
-				res.json({ message: 'Restaurant updated!' });
-			});
-
-		});
-	})
-
-	// delete the restaurant with this id
-	.delete(function(req, res) {
-		Restaurant.remove({
-			_id: req.params.restaurant_id
-		}, function(err, restaurant) {
-			if (err)
-				res.send(err);
-
-			res.json({ message: 'Successfully deleted' });
-		});
-	});
-
-
-router.route('/restaurants/title/:title')
-
-	// get the restaurant with that id
-	.get(function(req, res) {
-		Restaurant.find({title:req.params.title}, function(err, restaurant) {
-			if (err)
-				res.send(err);
-			res.json(restaurant);
-		});
-	});
 	
+
+
 	
-//  near restaurant near?lat=45.5&lon=-82	
-router.route('/restaurants/near/')
 
-	// get the restaurant with that id
-	.get(function(req, res) {
-		
-		//in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
-		var lat = parseFloat(req.query.lat);
-    var lon = parseFloat(req.query.lon);
-		
-		Restaurant.find({"pos" : {$near: [lon,lat]}}, function(err, restaurant) {
-			if (err)
-				res.send(err);
-			res.header("Content-Type:","application/json");
-      res.end(JSON.stringify(names));
-		});
-	});	
 
-// REGISTER OUR ROUTES -------------------------------
-app.use('/api', router);
+// apply the routes to our application
+app.use('/app', router);
+
+// we'll create our routes here
 
 // START THE SERVER
-// =============================================================================
+// ==============================================
 app.listen(port);
 console.log('Magic happens on port ' + port);
