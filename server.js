@@ -60,8 +60,10 @@ router.route('/restaurants/find')
 		 
 		//in production you would do some sanity checks on these values 
     var keyWord = req.query.keyword;
+    
+    var limit = req.query.limit || 20;//default return 20 restaurants
 		 
-		 Restaurant.find({'keywords': new RegExp(keyWord, "i")}).exec(function(err, restaurants) {
+		 Restaurant.find({'keywords': new RegExp(keyWord, "i")}).limit(limit).exec(function(err, restaurants) {
 			if (err)
 				res.send(err);
 
@@ -70,24 +72,41 @@ router.route('/restaurants/find')
 		 
 	});
 
-//find restaurants near a certain user with lat and lon (/restaurants/near?lon=41.988843&lat=3.014846)
+
+
+//find restaurants near a certain user with lat and lon (/app/restaurants/near?lon=2.189884&lat=41.375198&distance=8&limit=20)
 router.route('/restaurants/near')
 	.get(function(req, res) {
 		 
-		//in production you would do some sanity checks on these values before parsing and handle the error if they don't parse
-    var lat = parseFloat(req.query.lat);
-    var lon = parseFloat(req.query.lon);
-		 
-		 Restaurant.where('pos').near({ center: [lon , lat], maxDistance: 2 }).exec(function(err, restaurants) {
-			if (err)
-				res.send(err);
+		var limit = req.query.limit || 20;//default return 20 restaurants
+		
+		// get the max distance or set it to 800 meters
+    var maxDistance = req.query.distance || 8;
+    
+     // we need to convert the distance to radians
+    // the raduis of Earth is approximately 6371 kilometers
+    //maxDistance /= 6371;
+    
+    // get coordinates [ <longitude> , <latitude> ]
+    var coords = [];
+    coords[0] = parseFloat(req.query.lon) || 0;
+    coords[1] = parseFloat(req.query.lat) || 0; 
+		
+		  // find a location
+    Restaurant.find({
+      pos: {
+        $near: coords,
+        $maxDistance: maxDistance
+      }
+    }).limit(limit).exec(function(err, restaurants) {
+      if (err) {
+        return res.json(500, err);
+      }
 
-			res.json(restaurants);
-		});
+      res.json(200, restaurants);
+    });
 		 
 	});
-
-
 
 
 router.route('/restaurants')
