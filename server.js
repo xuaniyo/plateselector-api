@@ -54,38 +54,59 @@ router.get('/about', function(req, res) {
 
 
 
-//find restaurants by a keyword (http://localhost:3000/app/restaurants/find?keyword=morro)
+//find restaurants by a keyword (http://localhost:3000/app/restaurants/find?keyword=morro&page=1&size=10)
 router.route('/restaurants/find')
 	.get(function(req, res) {
 		 
 		//in production you would do some sanity checks on these values 
     var keyWord = req.query.keyword;
     
-    var limit = req.query.limit || 20;//default return 20 restaurants
+    var size = req.query.size || 20;//default return 20 restaurants
+    var page = req.query.page || 0;//default 0
+    var skip = page > 0 ? ((page - 1) * size) : 0;
+    
+    
+    page = parseInt(page);
+    size = parseInt(size);
+       
 		 
-		 Restaurant.find({'keywords': new RegExp(keyWord, "i")}).limit(limit).exec(function(err, restaurants) {
+		 Restaurant.find({'keywords': new RegExp(keyWord, "i")}).skip(skip).limit(size).exec(function(err, restaurants) {
 			if (err)
 				res.send(err);
 
-			res.json(restaurants);
+      var r ={};
+      r['count'] = restaurants.length;
+      r['restaurants'] = restaurants;	
+
+			res.json(r);
 		});
 		 
 	});
 
 
 
-//find restaurants near a certain user with lat and lon (/app/restaurants/near?lon=2.189884&lat=41.375198&distance=8&limit=20)
+//find restaurants near a certain user with lat and lon (/app/restaurants/near?lon=2.189884&lat=41.375198&distance=8&page=1&size=20)
 router.route('/restaurants/near')
 	.get(function(req, res) {
 		 
-		var limit = req.query.limit || 20;//default return 20 restaurants
+    var size = req.query.size || 20;//default return 20 restaurants
+    var page = req.query.page || 0;//default 0
+    var skip = page > 0 ? ((page - 1) * size) : 0;
+    
+    
+    page = parseInt(page);
+    size = parseInt(size);
 		
 		// get the max distance or set it to 800 meters
-    var maxDistance = req.query.distance || 8;
+    //var maxDistance = req.query.distance || 8;
+    
+    var maxDistance = 0.04; 
     
      // we need to convert the distance to radians
     // the raduis of Earth is approximately 6371 kilometers
     //maxDistance /= 6371;
+    
+    console.log("maxdistance--->"+maxDistance);
     
     // get coordinates [ <longitude> , <latitude> ]
     var coords = [];
@@ -98,12 +119,16 @@ router.route('/restaurants/near')
         $near: coords,
         $maxDistance: maxDistance
       }
-    }).limit(limit).exec(function(err, restaurants) {
+    }).skip(skip).limit(size).exec(function(err, restaurants) {
       if (err) {
         return res.json(500, err);
       }
+      
+      var r ={};
+      r['count'] = restaurants.length;
+      r['restaurants'] = restaurants;	
 
-      res.json(200, restaurants);
+      res.json(200, r);
     });
 		 
 	});
@@ -114,8 +139,14 @@ router.route('/restaurants')
 		Restaurant.find(function(err, restaurants) {
 			if (err)
 				res.send(err);
+				
+		  var r ={};
+      r['count'] = restaurants.length;
+      r['restaurants'] = restaurants;	
+      
 
-			res.json(restaurants);
+      console.log(restaurants.length)
+			res.json(r);
 		});
 	});
 	
